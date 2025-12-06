@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -234,3 +235,39 @@ func TestEngine_NoNodes(t *testing.T) {
 	assert.Empty(t, testCtx.GetLog())
 }
 
+func TestEngineRepeatedExecution(t *testing.T) {
+	var counter int64
+
+	engine := NewEngine[*int64]()
+
+	_ = engine.AddNode("a", func(ctx context.Context, c *int64) error {
+		atomic.AddInt64(c, 1)
+		return nil
+	})
+	_ = engine.AddNode("b", func(ctx context.Context, c *int64) error {
+		atomic.AddInt64(c, 10)
+		return nil
+	}, "a")
+	_ = engine.AddNode("c", func(ctx context.Context, c *int64) error {
+		atomic.AddInt64(c, 100)
+		return nil
+	}, "b")
+
+	err := engine.Build()
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	// Execute multiple times with the same engine
+	for i := 0; i < 5; i++ {
+		counter = 0
+		err = engine.Execute(context.Background(), &counter)
+		if err != nil {
+			t.Errorf("Execution %d failed: %v", i+1, err)
+		}
+		if counter != 111 {
+			t.Errorf("Execution %d: expected counter 111, got %d", i+1, counter)
+		}
+		t.Logf("Execution %d: counter = %d", i+1, counter)
+	}
+}

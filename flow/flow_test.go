@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mbeoliero/weave"
+	"github.com/mbeoliero/weave/graphviz"
 )
 
 var (
@@ -70,7 +71,7 @@ func GetGroupMember(ctx context.Context, group *GroupInfo) ([]int64, error) {
 func GetMemberRemarks(ctx context.Context, owner *User, memberUids []int64) (map[int64]string, error) {
 	time.Sleep(time.Millisecond * 30)
 
-	return dagpher.SliceToMap(memberUids, func(uid int64) (int64, string) {
+	return weave.SliceToMap(memberUids, func(uid int64) (int64, string) {
 		if uid == owner.Uid {
 			return uid, fmt.Sprintf("群主%v", uid)
 		}
@@ -80,7 +81,7 @@ func GetMemberRemarks(ctx context.Context, owner *User, memberUids []int64) (map
 
 func GetMemberInfos(ctx context.Context, memberUids []int64) (map[int64]*User, error) {
 	time.Sleep(time.Millisecond * 300)
-	return dagpher.SliceToMap(memberUids, func(uid int64) (int64, *User) {
+	return weave.SliceToMap(memberUids, func(uid int64) (int64, *User) {
 		return uid, &User{
 			Uid:    uid,
 			Name:   fmt.Sprintf("用户%v", uid),
@@ -267,7 +268,7 @@ func TestLoadAssemble(t *testing.T) {
 	)
 	flow := NewFlow[*Payload, *Result]().
 		SetMaxGoNum(10).
-		AddGlobalMW(dagpher.LoggerMW(), dagpher.GraphvizMW())
+		AddGlobalMW(weave.LoggerMW(), graphviz.Middleware())
 	flow.AddLoader(&GroupInfoLoader{})
 	flow.AddLoader(&OwnerInfoLoader{})
 	flow.AddLoader(&GroupMemberLoader{})
@@ -280,8 +281,8 @@ func TestLoadAssemble(t *testing.T) {
 	flow.AddAssembler(&OwnerAssembler{})
 	flow.AddAssembler(&MemberAssembler{})
 
-	ctx, graph := dagpher.GraphvizBuilder("flow").Build(ctx)
-	defer graph.Log(ctx)
+	ctx, gviz := graphviz.NewBuilder("flow").Build(ctx)
+	defer gviz.Log(ctx)
 	start := time.Now()
 	err := flow.Exec(ctx, payload, result)
 

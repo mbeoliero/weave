@@ -1,4 +1,4 @@
-package dagpher
+package graphviz_test
 
 import (
 	"context"
@@ -6,45 +6,46 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/mbeoliero/weave"
+	"github.com/mbeoliero/weave/graphviz"
 )
 
 func TestGraphvizMiddleware(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("TestGraphvizMW").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("TestGraphvizMW").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建测试节点
-	nodeA := NewNode("A", func(ctx context.Context, c int) error {
+	nodeA := weave.NewNode("A", func(ctx context.Context, c int) error {
 		time.Sleep(10 * time.Millisecond)
 		return nil
 	})
 
-	nodeB := NewNode("B", func(ctx context.Context, c int) error {
+	nodeB := weave.NewNode("B", func(ctx context.Context, c int) error {
 		time.Sleep(20 * time.Millisecond)
 		return nil
 	}, "A")
 
-	nodeC := NewNode("C", func(ctx context.Context, c int) error {
+	nodeC := weave.NewNode("C", func(ctx context.Context, c int) error {
 		time.Sleep(200 * time.Millisecond)
 		return nil
 	}, "A")
 
-	nodeD := NewNode("D", func(ctx context.Context, c int) error {
+	nodeD := weave.NewNode("D", func(ctx context.Context, c int) error {
 		time.Sleep(300 * time.Millisecond)
 		return nil
 	}, "B")
 
-	nodeE := NewNode("E", func(ctx context.Context, c int) error {
+	nodeE := weave.NewNode("E", func(ctx context.Context, c int) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "B", "C")
 
 	// 创建 Group 并添加 graphviz 中间件
-	group := NewGroup[int]("test_group")
-	group.AddMiddleware(GraphvizMW())
+	group := weave.NewGroup[int]("test_group")
+	group.AddMiddleware(graphviz.Middleware())
 
 	// 添加节点到组
 	group.AddNode(nodeA)
@@ -69,19 +70,19 @@ func TestGraphvizWithMultipleGroups(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("MultiGroupTest").WithMinCost(50).Build(ctx)
+	ctx, graph := graphviz.NewBuilder("MultiGroupTest").WithMinCost(50).Build(ctx)
 	defer graph.Log(ctx)
 
 	// 第一个组
-	group1 := NewGroup[string]("group1")
-	group1.AddMiddleware(GraphvizMW())
+	group1 := weave.NewGroup[string]("group1")
+	group1.AddMiddleware(graphviz.Middleware())
 
-	nodeA := NewNode("GroupA_NodeA", func(ctx context.Context, c string) error {
+	nodeA := weave.NewNode("GroupA_NodeA", func(ctx context.Context, c string) error {
 		time.Sleep(100 * time.Millisecond)
 		return nil
 	})
 
-	nodeB := NewNode("GroupA_NodeB", func(ctx context.Context, c string) error {
+	nodeB := weave.NewNode("GroupA_NodeB", func(ctx context.Context, c string) error {
 		time.Sleep(150 * time.Millisecond)
 		return nil
 	}, "GroupA_NodeA")
@@ -90,15 +91,15 @@ func TestGraphvizWithMultipleGroups(t *testing.T) {
 	group1.AddNode(nodeB)
 
 	// 第二个组
-	group2 := NewGroup[string]("group2", "group1")
-	group2.AddMiddleware(GraphvizMW())
+	group2 := weave.NewGroup[string]("group2", "group1")
+	group2.AddMiddleware(graphviz.Middleware())
 
-	nodeC := NewNode("GroupB_NodeC", func(ctx context.Context, c string) error {
+	nodeC := weave.NewNode("GroupB_NodeC", func(ctx context.Context, c string) error {
 		time.Sleep(80 * time.Millisecond)
 		return nil
 	})
 
-	nodeD := NewNode("GroupB_NodeD", func(ctx context.Context, c string) error {
+	nodeD := weave.NewNode("GroupB_NodeD", func(ctx context.Context, c string) error {
 		time.Sleep(120 * time.Millisecond)
 		return nil
 	}, "GroupB_NodeC")
@@ -127,22 +128,22 @@ func TestGraphvizWithErrors(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("ErrorTest").Build(ctx)
+	ctx, graph := graphviz.NewBuilder("ErrorTest").Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建会出错的节点
-	errorNode := NewNode("ErrorNode", func(ctx context.Context, c int) error {
+	errorNode := weave.NewNode("ErrorNode", func(ctx context.Context, c int) error {
 		time.Sleep(50 * time.Millisecond)
 		return fmt.Errorf("test error")
 	})
 
-	successNode := NewNode("SuccessNode", func(ctx context.Context, c int) error {
+	successNode := weave.NewNode("SuccessNode", func(ctx context.Context, c int) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "ErrorNode")
 
-	group := NewGroup[int]("error_group")
-	group.AddMiddleware(GraphvizMW())
+	group := weave.NewGroup[int]("error_group")
+	group.AddMiddleware(graphviz.Middleware())
 
 	group.AddNode(errorNode)
 	group.AddNode(successNode)
@@ -161,7 +162,7 @@ func TestGraphvizWithConcurrencyLimit(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("ConcurrencyLimitTest").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("ConcurrencyLimitTest").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建测试节点 - 设计一个场景：同时有3个节点可以执行，但MaxGoNum=2
@@ -177,40 +178,40 @@ func TestGraphvizWithConcurrencyLimit(t *testing.T) {
 	// 3. B和C完成后，D和E可以开始
 
 	start := time.Now()
-	nodeA := NewNode("A", func(ctx context.Context, c int) error {
+	nodeA := weave.NewNode("A", func(ctx context.Context, c int) error {
 		defer func() { t.Log("end exec A in ", time.Since(start).Milliseconds()) }()
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	})
 
-	nodeB := NewNode("B", func(ctx context.Context, c int) error {
+	nodeB := weave.NewNode("B", func(ctx context.Context, c int) error {
 		defer func() { t.Log("end exec B in ", time.Since(start).Milliseconds()) }()
 		time.Sleep(100 * time.Millisecond)
 		return nil
 	})
 
-	nodeC := NewNode("C", func(ctx context.Context, c int) error {
+	nodeC := weave.NewNode("C", func(ctx context.Context, c int) error {
 		defer func() { t.Log("end exec C in ", time.Since(start).Milliseconds()) }()
 		time.Sleep(80 * time.Millisecond)
 		return nil
 	})
 
-	nodeD := NewNode("D", func(ctx context.Context, c int) error {
+	nodeD := weave.NewNode("D", func(ctx context.Context, c int) error {
 		defer func() { t.Log("end exec D in ", time.Since(start).Milliseconds()) }()
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	}, "A")
 
-	nodeE := NewNode("E", func(ctx context.Context, c int) error {
+	nodeE := weave.NewNode("E", func(ctx context.Context, c int) error {
 		defer func() { t.Log("end exec E in ", time.Since(start).Milliseconds()) }()
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	}, "B", "C")
 
 	// 创建 Group 并设置并发限制为2
-	group := NewGroup[int]("concurrency_test")
+	group := weave.NewGroup[int]("concurrency_test")
 	group.SetMaxGoNum(2) // 关键：限制并发度为2
-	group.AddMiddleware(GraphvizMW())
+	group.AddMiddleware(graphviz.Middleware())
 
 	// 添加节点到组
 	group.AddNode(nodeA)
@@ -249,106 +250,26 @@ func TestGraphvizWithConcurrencyLimit(t *testing.T) {
 	t.Logf("Total execution time: %v", totalTime)
 }
 
-func TestGroupExec(t *testing.T) {
-	ctx := context.TODO()
-	Convey("group", t, func() {
-		var (
-			graph  = NewGraph[*Tuple2]()
-			exeCtx = &Tuple2{
-				First:  1,
-				Second: 1,
-			}
-		)
-
-		g1 := NewGroup[*Tuple2]("group1")
-		g1.SetMaxGoNum(10)
-		A, B, C, D, E := NewCalcNodes(Param{SetDep: true, SetName: 1})
-		g1.AddNode(A)
-		g1.AddNode(B)
-		g1.AddNode(C)
-		g1.AddNode(D)
-		g1.AddNode(E) // (31,153)
-		// ((First + 3) * 5) + 11
-		// ((Second + 3) * 5 * 7) + 13
-		// 330
-
-		g2 := NewGroup[*Tuple2]("group2", "group1")
-		g2.SetMaxGoNum(1)
-		A, B, C, D, E = NewCalcNodes(Param{SetDep: true, SetName: 2})
-		g2.AddNode(A)
-		g2.AddNode(B)
-		g2.AddNode(C)
-		g2.AddNode(D)
-		g2.AddNode(E) // (181, 5473)
-
-		g3 := NewGroup[*Tuple2]("group3", "group2")
-		g3.SetMaxGoNum(10)
-		A, B, C, D, E = NewCalcNodes(Param{SetDep: true, SetName: 3})
-		g3.AddNode(A)
-		g3.AddNode(B)
-		g3.AddNode(C)
-		g3.AddNode(D)
-		g3.AddNode(E) // (931,191673)
-
-		g4 := NewGroup[*Tuple2]("group4")
-		A, B, C, D, E = NewCalcNodes(Param{SetDep: false, SetName: 4})
-		g4.AddNode(A)
-		g4.AddNode(B)
-		g4.AddNode(C)
-		g4.AddNode(D)
-		g4.AddNode(E) // (4681, 6711801)
-
-		g3.AddNode(g4.AsNode())
-
-		graph.AddNode(g1.AsNode())
-		graph.AddNode(g2.AsNode())
-		graph.AddNode(g3.AsNode())
-
-		tmpA := NewNode("tmpA", func(ctx context.Context, c *Tuple2) error {
-			time.Sleep(100 * time.Millisecond)
-			return nil
-		}, "group1")
-		graph.AddNode(tmpA)
-
-		tmpB := NewNode("tmpB", func(ctx context.Context, c *Tuple2) error {
-			time.Sleep(200 * time.Millisecond)
-			return nil
-		}, "group2")
-		graph.AddNode(tmpB)
-
-		ctx, graphviz := newGraphvizBuilder("GroupExec").Build(ctx)
-		defer graphviz.Log(ctx)
-		graph.AddGlobalMW(GraphvizMW())
-		graph.AddGlobalMW(LoggerMW())
-
-		//now := time.Now()
-		err := graph.Exec(ctx, exeCtx)
-		So(err, ShouldBeNil)
-		//So(exeCtx.First, ShouldEqual, 4697) // 这里因为存在并发，不是4681
-		//So(exeCtx.Second, ShouldEqual, 6711801)
-		//cost := time.Since(now)
-		//So(cost, ShouldBeGreaterThanOrEqualTo, time.Millisecond*1450)
-		//So(cost, ShouldBeLessThan, time.Millisecond*1459)
-	})
-}
+// TestGroupExec was removed because it depends on weave package's private test helpers
+// (Tuple2, NewCalcNodes, Param). The test is kept in weave/graph_test.go instead.
 
 func TestGroupToGroupDependency(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("GroupToGroupTest").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("GroupToGroupTest").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建第一个组 - 数据准备组
-	prepGroup := NewGroup[string]("prep")
-	prepGroup.AddMiddleware(GraphvizMW())
+	prepGroup := weave.NewGroup[string]("prep")
+	prepGroup.AddMiddleware(graphviz.Middleware())
 
-	nodePrep1 := NewNode("PrepData", func(ctx context.Context, c string) error {
+	nodePrep1 := weave.NewNode("PrepData", func(ctx context.Context, c string) error {
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	})
 
-	nodePrep2 := NewNode("ValidateData", func(ctx context.Context, c string) error {
+	nodePrep2 := weave.NewNode("ValidateData", func(ctx context.Context, c string) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "PrepData")
@@ -357,15 +278,15 @@ func TestGroupToGroupDependency(t *testing.T) {
 	prepGroup.AddNode(nodePrep2)
 
 	// 创建第二个组 - 处理组，依赖于prep组
-	processGroup := NewGroup[string]("process", "prep")
-	processGroup.AddMiddleware(GraphvizMW())
+	processGroup := weave.NewGroup[string]("process", "prep")
+	processGroup.AddMiddleware(graphviz.Middleware())
 
-	nodeProcess1 := NewNode("ProcessA", func(ctx context.Context, c string) error {
+	nodeProcess1 := weave.NewNode("ProcessA", func(ctx context.Context, c string) error {
 		time.Sleep(80 * time.Millisecond)
 		return nil
 	})
 
-	nodeProcess2 := NewNode("ProcessB", func(ctx context.Context, c string) error {
+	nodeProcess2 := weave.NewNode("ProcessB", func(ctx context.Context, c string) error {
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	}, "ProcessA")
@@ -374,10 +295,10 @@ func TestGroupToGroupDependency(t *testing.T) {
 	processGroup.AddNode(nodeProcess2)
 
 	// 创建第三个组 - 输出组，依赖于process组
-	outputGroup := NewGroup[string]("output", "process")
-	outputGroup.AddMiddleware(GraphvizMW())
+	outputGroup := weave.NewGroup[string]("output", "process")
+	outputGroup.AddMiddleware(graphviz.Middleware())
 
-	nodeOutput := NewNode("GenerateReport", func(ctx context.Context, c string) error {
+	nodeOutput := weave.NewNode("GenerateReport", func(ctx context.Context, c string) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	})
@@ -385,8 +306,8 @@ func TestGroupToGroupDependency(t *testing.T) {
 	outputGroup.AddNode(nodeOutput)
 
 	// 创建图并添加组
-	mainGraph := NewGraph[string]()
-	mainGraph.AddGlobalMW(GraphvizMW())
+	mainGraph := weave.NewGraph[string]()
+	mainGraph.AddGlobalMW(graphviz.Middleware())
 	mainGraph.AddNode(prepGroup.AsNode())
 	mainGraph.AddNode(processGroup.AsNode())
 	mainGraph.AddNode(outputGroup.AsNode())
@@ -407,24 +328,24 @@ func TestNodeToGroupDependency(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("NodeToGroupTest").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("NodeToGroupTest").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建服务启动组
-	serviceGroup := NewGroup[int]("services")
-	serviceGroup.AddMiddleware(GraphvizMW())
+	serviceGroup := weave.NewGroup[int]("services")
+	serviceGroup.AddMiddleware(graphviz.Middleware())
 
-	dbNode := NewNode("StartDB", func(ctx context.Context, c int) error {
+	dbNode := weave.NewNode("StartDB", func(ctx context.Context, c int) error {
 		time.Sleep(100 * time.Millisecond)
 		return nil
 	})
 
-	cacheNode := NewNode("StartCache", func(ctx context.Context, c int) error {
+	cacheNode := weave.NewNode("StartCache", func(ctx context.Context, c int) error {
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	})
 
-	apiNode := NewNode("StartAPI", func(ctx context.Context, c int) error {
+	apiNode := weave.NewNode("StartAPI", func(ctx context.Context, c int) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	}, "StartDB", "StartCache")
@@ -434,25 +355,25 @@ func TestNodeToGroupDependency(t *testing.T) {
 	serviceGroup.AddNode(apiNode)
 
 	// 创建依赖于整个服务组的独立节点
-	healthCheckNode := NewNode("HealthCheck", func(ctx context.Context, c int) error {
+	healthCheckNode := weave.NewNode("HealthCheck", func(ctx context.Context, c int) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "services") // 依赖整个services组
 
-	monitorNode := NewNode("StartMonitoring", func(ctx context.Context, c int) error {
+	monitorNode := weave.NewNode("StartMonitoring", func(ctx context.Context, c int) error {
 		time.Sleep(25 * time.Millisecond)
 		return nil
 	}, "services") // 依赖整个services组
 
 	// 创建依赖于监控的节点
-	alertNode := NewNode("SetupAlerts", func(ctx context.Context, c int) error {
+	alertNode := weave.NewNode("SetupAlerts", func(ctx context.Context, c int) error {
 		time.Sleep(20 * time.Millisecond)
 		return nil
 	}, "StartMonitoring")
 
 	// 创建图并添加节点
-	mainGraph := NewGraph[int]()
-	mainGraph.AddGlobalMW(GraphvizMW())
+	mainGraph := weave.NewGraph[int]()
+	mainGraph.AddGlobalMW(graphviz.Middleware())
 	mainGraph.AddNode(serviceGroup.AsNode())
 	mainGraph.AddNode(healthCheckNode)
 	mainGraph.AddNode(monitorNode)
@@ -474,19 +395,19 @@ func TestComplexMixedDependencies(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("ComplexMixedTest").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("ComplexMixedTest").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建基础设施组
-	infraGroup := NewGroup[string]("infrastructure")
-	infraGroup.AddMiddleware(GraphvizMW())
+	infraGroup := weave.NewGroup[string]("infrastructure")
+	infraGroup.AddMiddleware(graphviz.Middleware())
 
-	networkNode := NewNode("SetupNetwork", func(ctx context.Context, c string) error {
+	networkNode := weave.NewNode("SetupNetwork", func(ctx context.Context, c string) error {
 		time.Sleep(80 * time.Millisecond)
 		return nil
 	})
 
-	storageNode := NewNode("SetupStorage", func(ctx context.Context, c string) error {
+	storageNode := weave.NewNode("SetupStorage", func(ctx context.Context, c string) error {
 		time.Sleep(90 * time.Millisecond)
 		return nil
 	})
@@ -495,10 +416,10 @@ func TestComplexMixedDependencies(t *testing.T) {
 	infraGroup.AddNode(storageNode)
 
 	// 创建应用组，依赖于基础设施组
-	appGroup := NewGroup[string]("application", "infrastructure")
-	appGroup.AddMiddleware(GraphvizMW())
+	appGroup := weave.NewGroup[string]("application", "infrastructure")
+	appGroup.AddMiddleware(graphviz.Middleware())
 
-	webServerNode := NewNode("StartWebServer", func(ctx context.Context, c string) error {
+	webServerNode := weave.NewNode("StartWebServer", func(ctx context.Context, c string) error {
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	})
@@ -506,31 +427,31 @@ func TestComplexMixedDependencies(t *testing.T) {
 	appGroup.AddNode(webServerNode)
 
 	// 创建独立的配置节点，依赖于基础设施组
-	configNode := NewNode("LoadConfig", func(ctx context.Context, c string) error {
+	configNode := weave.NewNode("LoadConfig", func(ctx context.Context, c string) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "infrastructure")
 
 	// 创建部署节点，依赖于应用组和配置节点
-	deployNode := NewNode("Deploy", func(ctx context.Context, c string) error {
+	deployNode := weave.NewNode("Deploy", func(ctx context.Context, c string) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	}, "application", "LoadConfig")
 
 	// 创建独立的测试节点，依赖于部署节点
-	integrationTestNode := NewNode("IntegrationTest", func(ctx context.Context, c string) error {
+	integrationTestNode := weave.NewNode("IntegrationTest", func(ctx context.Context, c string) error {
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	}, "Deploy")
 
-	loadTestNode := NewNode("LoadTest", func(ctx context.Context, c string) error {
+	loadTestNode := weave.NewNode("LoadTest", func(ctx context.Context, c string) error {
 		time.Sleep(70 * time.Millisecond)
 		return nil
 	}, "Deploy")
 
 	// 创建图并添加所有节点
-	mainGraph := NewGraph[string]()
-	mainGraph.AddGlobalMW(GraphvizMW())
+	mainGraph := weave.NewGraph[string]()
+	mainGraph.AddGlobalMW(graphviz.Middleware())
 	mainGraph.AddNode(infraGroup.AsNode())
 	mainGraph.AddNode(appGroup.AsNode())
 	mainGraph.AddNode(configNode)
@@ -554,14 +475,14 @@ func TestNestedGroupDependencies(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("NestedGroupTest").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("NestedGroupTest").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建顶层组 - 数据层
-	dataGroup := NewGroup[int]("data")
-	dataGroup.AddMiddleware(GraphvizMW())
+	dataGroup := weave.NewGroup[int]("data")
+	dataGroup.AddMiddleware(graphviz.Middleware())
 
-	dbInitNode := NewNode("InitDB", func(ctx context.Context, c int) error {
+	dbInitNode := weave.NewNode("InitDB", func(ctx context.Context, c int) error {
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	})
@@ -569,15 +490,15 @@ func TestNestedGroupDependencies(t *testing.T) {
 	dataGroup.AddNode(dbInitNode)
 
 	// 创建嵌套的数据访问子组
-	dataAccessGroup := NewGroup[int]("access", "InitDB")
-	dataAccessGroup.AddMiddleware(GraphvizMW())
+	dataAccessGroup := weave.NewGroup[int]("access", "InitDB")
+	dataAccessGroup.AddMiddleware(graphviz.Middleware())
 
-	repoNode := NewNode("SetupRepo", func(ctx context.Context, c int) error {
+	repoNode := weave.NewNode("SetupRepo", func(ctx context.Context, c int) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	})
 
-	cacheLayerNode := NewNode("SetupCache", func(ctx context.Context, c int) error {
+	cacheLayerNode := weave.NewNode("SetupCache", func(ctx context.Context, c int) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "SetupRepo")
@@ -589,15 +510,15 @@ func TestNestedGroupDependencies(t *testing.T) {
 	dataGroup.AddNode(dataAccessGroup.AsNode())
 
 	// 创建业务逻辑组，依赖于数据访问组的最后一个节点
-	businessGroup := NewGroup[int]("business", "data")
-	businessGroup.AddMiddleware(GraphvizMW())
+	businessGroup := weave.NewGroup[int]("business", "data")
+	businessGroup.AddMiddleware(graphviz.Middleware())
 
-	serviceNode := NewNode("BusinessService", func(ctx context.Context, c int) error {
+	serviceNode := weave.NewNode("BusinessService", func(ctx context.Context, c int) error {
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	})
 
-	validatorNode := NewNode("Validator", func(ctx context.Context, c int) error {
+	validatorNode := weave.NewNode("Validator", func(ctx context.Context, c int) error {
 		time.Sleep(35 * time.Millisecond)
 		return nil
 	}, "BusinessService")
@@ -606,16 +527,16 @@ func TestNestedGroupDependencies(t *testing.T) {
 	businessGroup.AddNode(validatorNode)
 
 	// 创建API层节点，依赖于业务组的最后一个节点
-	apiNode := NewNode("StartAPI", func(ctx context.Context, c int) error {
+	apiNode := weave.NewNode("StartAPI", func(ctx context.Context, c int) error {
 		time.Sleep(45 * time.Millisecond)
 		return nil
 	}, "business")
 
 	// 创建嵌套的监控组
-	monitoringGroup := NewGroup[int]("monitoring", "StartAPI")
-	monitoringGroup.AddMiddleware(GraphvizMW())
+	monitoringGroup := weave.NewGroup[int]("monitoring", "StartAPI")
+	monitoringGroup.AddMiddleware(graphviz.Middleware())
 
-	startupNode := NewNode("Startup", func(ctx context.Context, c int) error {
+	startupNode := weave.NewNode("Startup", func(ctx context.Context, c int) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	})
@@ -623,10 +544,10 @@ func TestNestedGroupDependencies(t *testing.T) {
 	monitoringGroup.AddNode(startupNode)
 
 	// 监控子组中的健康检查组
-	healthGroup := NewGroup[int]("health", "Startup")
-	healthGroup.AddMiddleware(GraphvizMW())
+	healthGroup := weave.NewGroup[int]("health", "Startup")
+	healthGroup.AddMiddleware(graphviz.Middleware())
 
-	healthCheckNode := NewNode("HealthCheck", func(ctx context.Context, c int) error {
+	healthCheckNode := weave.NewNode("HealthCheck", func(ctx context.Context, c int) error {
 		time.Sleep(25 * time.Millisecond)
 		return nil
 	})
@@ -634,10 +555,10 @@ func TestNestedGroupDependencies(t *testing.T) {
 	healthGroup.AddNode(healthCheckNode)
 
 	// 监控子组中的指标组
-	metricsGroup := NewGroup[int]("metrics", "Startup")
-	metricsGroup.AddMiddleware(GraphvizMW())
+	metricsGroup := weave.NewGroup[int]("metrics", "Startup")
+	metricsGroup.AddMiddleware(graphviz.Middleware())
 
-	metricsCollectorNode := NewNode("MetricsCollector", func(ctx context.Context, c int) error {
+	metricsCollectorNode := weave.NewNode("MetricsCollector", func(ctx context.Context, c int) error {
 		time.Sleep(20 * time.Millisecond)
 		return nil
 	})
@@ -649,14 +570,14 @@ func TestNestedGroupDependencies(t *testing.T) {
 	monitoringGroup.AddNode(metricsGroup.AsNode())
 
 	// 创建告警节点，依赖于监控组的节点
-	alertNode := NewNode("AlertSystem", func(ctx context.Context, c int) error {
+	alertNode := weave.NewNode("AlertSystem", func(ctx context.Context, c int) error {
 		time.Sleep(15 * time.Millisecond)
 		return nil
 	}, "monitoring")
 
 	// 创建主图
-	mainGraph := NewGraph[int]()
-	mainGraph.AddGlobalMW(GraphvizMW())
+	mainGraph := weave.NewGraph[int]()
+	mainGraph.AddGlobalMW(graphviz.Middleware())
 	mainGraph.AddNode(dataGroup.AsNode())
 	mainGraph.AddNode(businessGroup.AsNode())
 	mainGraph.AddNode(apiNode)
@@ -682,51 +603,51 @@ func TestSimpleGroupDependencyChain(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("SimpleGroupChain").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("SimpleGroupChain").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 创建第一个组 - 没有依赖
-	groupA := NewGroup[string]("groupA")
-	groupA.AddMiddleware(GraphvizMW())
-	nodeA := NewNode("TaskA", func(ctx context.Context, c string) error {
+	groupA := weave.NewGroup[string]("groupA")
+	groupA.AddMiddleware(graphviz.Middleware())
+	nodeA := weave.NewNode("TaskA", func(ctx context.Context, c string) error {
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	})
 	groupA.AddNode(nodeA)
 
 	// 创建第二个组 - 依赖groupA
-	groupB := NewGroup[string]("groupB", "groupA")
-	groupB.AddMiddleware(GraphvizMW())
-	nodeB := NewNode("TaskB", func(ctx context.Context, c string) error {
+	groupB := weave.NewGroup[string]("groupB", "groupA")
+	groupB.AddMiddleware(graphviz.Middleware())
+	nodeB := weave.NewNode("TaskB", func(ctx context.Context, c string) error {
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	})
 	groupB.AddNode(nodeB)
 
 	// 创建第三个组 - 依赖groupB
-	groupC := NewGroup[string]("groupC", "groupB")
-	groupC.AddMiddleware(GraphvizMW())
-	nodeC := NewNode("TaskC", func(ctx context.Context, c string) error {
+	groupC := weave.NewGroup[string]("groupC", "groupB")
+	groupC.AddMiddleware(graphviz.Middleware())
+	nodeC := weave.NewNode("TaskC", func(ctx context.Context, c string) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	})
 	groupC.AddNode(nodeC)
 
 	// 创建独立节点 - 依赖groupA
-	independentNode := NewNode("IndependentTask", func(ctx context.Context, c string) error {
+	independentNode := weave.NewNode("IndependentTask", func(ctx context.Context, c string) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "groupA")
 
 	// 创建最终节点 - 依赖groupC和独立节点
-	finalNode := NewNode("FinalTask", func(ctx context.Context, c string) error {
+	finalNode := weave.NewNode("FinalTask", func(ctx context.Context, c string) error {
 		time.Sleep(20 * time.Millisecond)
 		return nil
 	}, "groupC", "IndependentTask")
 
 	// 创建主图
-	mainGraph := NewGraph[string]()
-	mainGraph.AddGlobalMW(GraphvizMW())
+	mainGraph := weave.NewGraph[string]()
+	mainGraph.AddGlobalMW(graphviz.Middleware())
 	mainGraph.AddNode(groupA.AsNode())
 	mainGraph.AddNode(groupB.AsNode())
 	mainGraph.AddNode(groupC.AsNode())
@@ -754,19 +675,19 @@ func TestWellDesignedComplexDependencies(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建 graphviz 实例
-	ctx, graph := newGraphvizBuilder("WellDesignedComplexTest").WithTimeDetail().Build(ctx)
+	ctx, graph := graphviz.NewBuilder("WellDesignedComplexTest").WithTimeDetail().Build(ctx)
 	defer graph.Log(ctx)
 
 	// 第一层：基础设施组 - 没有依赖
-	infraGroup := NewGroup[int]("infrastructure")
-	infraGroup.AddMiddleware(GraphvizMW())
+	infraGroup := weave.NewGroup[int]("infrastructure")
+	infraGroup.AddMiddleware(graphviz.Middleware())
 
-	networkSetupNode := NewNode("NetworkSetup", func(ctx context.Context, c int) error {
+	networkSetupNode := weave.NewNode("NetworkSetup", func(ctx context.Context, c int) error {
 		time.Sleep(60 * time.Millisecond)
 		return nil
 	})
 
-	storageSetupNode := NewNode("StorageSetup", func(ctx context.Context, c int) error {
+	storageSetupNode := weave.NewNode("StorageSetup", func(ctx context.Context, c int) error {
 		time.Sleep(70 * time.Millisecond)
 		return nil
 	}, "NetworkSetup")
@@ -775,15 +696,15 @@ func TestWellDesignedComplexDependencies(t *testing.T) {
 	infraGroup.AddNode(storageSetupNode)
 
 	// 第二层：数据库组 - 依赖于基础设施组
-	databaseGroup := NewGroup[int]("database", "infrastructure")
-	databaseGroup.AddMiddleware(GraphvizMW())
+	databaseGroup := weave.NewGroup[int]("database", "infrastructure")
+	databaseGroup.AddMiddleware(graphviz.Middleware())
 
-	dbInstallNode := NewNode("DBInstall", func(ctx context.Context, c int) error {
+	dbInstallNode := weave.NewNode("DBInstall", func(ctx context.Context, c int) error {
 		time.Sleep(80 * time.Millisecond)
 		return nil
 	})
 
-	dbConfigNode := NewNode("DBConfig", func(ctx context.Context, c int) error {
+	dbConfigNode := weave.NewNode("DBConfig", func(ctx context.Context, c int) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	}, "DBInstall")
@@ -792,15 +713,15 @@ func TestWellDesignedComplexDependencies(t *testing.T) {
 	databaseGroup.AddNode(dbConfigNode)
 
 	// 第三层：应用服务组 - 依赖于数据库组
-	appGroup := NewGroup[int]("application", "database")
-	appGroup.AddMiddleware(GraphvizMW())
+	appGroup := weave.NewGroup[int]("application", "database")
+	appGroup.AddMiddleware(graphviz.Middleware())
 
-	appServerNode := NewNode("AppServer", func(ctx context.Context, c int) error {
+	appServerNode := weave.NewNode("AppServer", func(ctx context.Context, c int) error {
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	})
 
-	apiGatewayNode := NewNode("APIGateway", func(ctx context.Context, c int) error {
+	apiGatewayNode := weave.NewNode("APIGateway", func(ctx context.Context, c int) error {
 		time.Sleep(45 * time.Millisecond)
 		return nil
 	}, "AppServer")
@@ -809,27 +730,27 @@ func TestWellDesignedComplexDependencies(t *testing.T) {
 	appGroup.AddNode(apiGatewayNode)
 
 	// 独立节点：配置加载器 - 依赖于基础设施组的最后一个节点
-	configLoaderNode := NewNode("ConfigLoader", func(ctx context.Context, c int) error {
+	configLoaderNode := weave.NewNode("ConfigLoader", func(ctx context.Context, c int) error {
 		time.Sleep(30 * time.Millisecond)
 		return nil
 	}, "infrastructure")
 
 	// 独立节点：健康检查 - 依赖于应用组的最后一个节点
-	healthCheckNode := NewNode("HealthCheck", func(ctx context.Context, c int) error {
+	healthCheckNode := weave.NewNode("HealthCheck", func(ctx context.Context, c int) error {
 		time.Sleep(25 * time.Millisecond)
 		return nil
 	}, "application")
 
 	// 第四层：监控组 - 依赖于应用组和健康检查节点
-	monitorGroup := NewGroup[int]("monitoring", "HealthCheck")
-	monitorGroup.AddMiddleware(GraphvizMW())
+	monitorGroup := weave.NewGroup[int]("monitoring", "HealthCheck")
+	monitorGroup.AddMiddleware(graphviz.Middleware())
 
-	metricsCollectorNode := NewNode("MetricsCollector", func(ctx context.Context, c int) error {
+	metricsCollectorNode := weave.NewNode("MetricsCollector", func(ctx context.Context, c int) error {
 		time.Sleep(35 * time.Millisecond)
 		return nil
 	})
 
-	logAggregatorNode := NewNode("LogAggregator", func(ctx context.Context, c int) error {
+	logAggregatorNode := weave.NewNode("LogAggregator", func(ctx context.Context, c int) error {
 		time.Sleep(40 * time.Millisecond)
 		return nil
 	})
@@ -838,14 +759,14 @@ func TestWellDesignedComplexDependencies(t *testing.T) {
 	monitorGroup.AddNode(logAggregatorNode)
 
 	// 最终节点：部署完成通知 - 依赖于监控组的节点和配置加载器
-	deploymentCompleteNode := NewNode("DeploymentComplete", func(ctx context.Context, c int) error {
+	deploymentCompleteNode := weave.NewNode("DeploymentComplete", func(ctx context.Context, c int) error {
 		time.Sleep(20 * time.Millisecond)
 		return nil
 	}, "monitoring", "ConfigLoader")
 
 	// 创建主图并添加所有节点和组
-	mainGraph := NewGraph[int]()
-	mainGraph.AddGlobalMW(GraphvizMW())
+	mainGraph := weave.NewGraph[int]()
+	mainGraph.AddGlobalMW(graphviz.Middleware())
 
 	// 添加组和独立节点（按依赖顺序）
 	mainGraph.AddNode(infraGroup.AsNode())

@@ -1,6 +1,6 @@
-// Package dagpher provides high-level DAG execution interfaces.
+// Package weave provides high-level DAG execution interfaces.
 // This file contains the Graph type which provides a simple interface for DAG execution.
-package dagpher
+package weave
 
 import (
 	"context"

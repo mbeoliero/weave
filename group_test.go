@@ -1,4 +1,4 @@
-package dagpher
+package weave
 
 import (
 	"context"

@@ -25,7 +25,7 @@ func (d *DependNode) Depends() []IDepend {
 }
 
 func (d *DependNode) Dependencies() []string {
-	return dagpher.Map(d.Deps, func(dep IDepend) string {
+	return weave.Map(d.Deps, func(dep IDepend) string {
 		return dep.Name()
 	})
 }
@@ -37,7 +37,7 @@ func NewDependNode(nm string, deps ...IDepend) IDependencyNode {
 	}
 }
 
-func ToDependencyNode(n IDependencyNode) dagpher.DependencyNode {
+func ToDependencyNode(n IDependencyNode) weave.DependencyNode {
 	return &DependNode{
 		NodeName: n.Name(),
 		Deps:     n.Depends(),

@@ -1,4 +1,4 @@
-package dagpher
+package weave
 
 import (
 	"context"
@@ -246,9 +246,9 @@ func TestGraph(t *testing.T) {
 		graph.AddNode(g3.AsNode())
 		g3.AddNode(g4.AsNode())
 
-		ctx, graphviz := newGraphvizBuilder("flow").Build(ctx)
-		defer graphviz.Log(ctx)
-		graph.AddGlobalMW(GraphvizMW())
+		//ctx, gviz := graphviz.NewBuilder("flow").Build(ctx)
+		//defer gviz.Log(ctx)
+		//graph.AddGlobalMW(graphviz.Middleware())
 		graph.AddGlobalMW(LoggerMW())
 
 		now := time.Now()
@@ -1536,9 +1536,9 @@ func TestGraphRobustness(t *testing.T) {
 //		graph.AddNode(g3.AsNode())
 //		g3.AddNode(g4.AsNode())
 //
-//		ctx, graphviz := newGraphvizBuilder("flow").Build(ctx)
+//		ctx, graphviz := graphviz.NewBuilder("flow").Build(ctx)
 //		defer graphviz.Log(ctx)
-//		graph.AddGlobalMW(GraphvizMW())
+//		graph.AddGlobalMW(graphviz.Middleware())
 //		//graph.AddGlobalMW(LoggerMW())
 //
 //		now := time.Now()

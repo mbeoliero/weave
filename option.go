@@ -1,4 +1,4 @@
-package dagpher
+package weave
 
 type option struct {
 	mws []Middleware // middlewares to apply to all nodes in the group

@@ -1,6 +1,6 @@
-// Package dagpher provides a type-safe DAG execution engine with support for
+// Package weave provides a type-safe DAG execution engine with support for
 // hierarchical groups, middleware, and concurrent execution control.
-package dagpher
+package weave
 
 import (
 	"context"

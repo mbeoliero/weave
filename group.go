@@ -1,6 +1,6 @@
-// Package dagpher provides group management and hierarchical DAG execution.
+// Package weave provides group management and hierarchical DAG execution.
 // This file contains the Group type which allows organizing nodes into hierarchical containers.
-package dagpher
+package weave
 
 import (
 	"context"
@@ -11,15 +11,6 @@ import (
 
 	"github.com/mbeoliero/weave/executor"
 )
-
-//// NodeContainer defines the interface for managing nodes within a container.
-//// It provides methods for adding nodes, configuring middleware, and controlling concurrency.
-//type NodeContainer[C any] interface {
-//	AddNode(Node[C], ...Option) error
-//	AddMiddleware(...Middleware) NodeContainer[C]
-//	SetMaxGoNum(int) NodeContainer[C]
-//	SetGlobalSem(*semaphore.Weighted) NodeContainer[C]
-//}
 
 // GroupNodeAdapter adapts a Group to implement the Node interface
 // It's a lightweight adapter that delegates to the group for actual execution
@@ -48,6 +39,12 @@ func (a *GroupNodeAdapter[C]) Build() error {
 // Exec implements Node interface by delegating to the group
 func (a *GroupNodeAdapter[C]) Exec(ctx context.Context, c C) error {
 	return a.group.Exec(ctx, c)
+}
+
+// InternalName implements SubExecutor interface.
+// Returns the underlying group's name for hierarchy path.
+func (a *GroupNodeAdapter[C]) InternalName() string {
+	return a.group.name
 }
 
 // Group manages a collection of nodes as a container

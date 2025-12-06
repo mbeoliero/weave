@@ -1,4 +1,4 @@
-package dagpher
+package weave
 
 import (
 	"context"
@@ -298,9 +298,9 @@ func TestChainPipeline(t *testing.T) {
 		chain.AddNode(E)
 		chain.AddNode(D)
 
-		ctx, graphviz := newGraphvizBuilder("flow").Build(ctx)
-		defer graphviz.Log(ctx)
-		chain.AddGlobalMW(GraphvizMW())
+		//ctx, gviz := graphviz.NewBuilder("flow").Build(ctx)
+		//defer gviz.Log(ctx)
+		//chain.AddGlobalMW(graphviz.Middleware())
 
 		exeCtx := &Tuple2{
 			First:  1,

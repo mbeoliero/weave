@@ -177,10 +177,35 @@ func (e *Engine[C]) Build() error {
 	return nil
 }
 
+// resetState resets all node states for re-execution.
+// This must be called before each execution to support repeated execution of the same Engine.
+func (e *Engine[C]) resetState() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Reset node stats with fresh channels and state
+	for name := range e.nodeExec {
+		e.nodeStat[name] = &nodeStat{
+			done: make(chan struct{}),
+		}
+	}
+
+	// Recalculate in-degrees based on dependency graph
+	for _, dependents := range e.nodeToNext {
+		for _, dep := range dependents {
+			e.nodeStat[dep].degree++
+		}
+	}
+}
+
 func (e *Engine[C]) Execute(ctx context.Context, c C) error {
 	if ctx == nil {
 		return errors.New("nil context")
 	}
+
+	// Reset state for re-execution support
+	e.resetState()
+
 	e.mu.RLock()
 	rootNodesCopy := make([]string, len(e.rootNode))
 	copy(rootNodesCopy, e.rootNode)

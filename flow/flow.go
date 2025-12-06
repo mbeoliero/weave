@@ -35,18 +35,18 @@ type ExecCtx[P, R any] struct {
 }
 
 type Flow[P, R any] struct {
-	flow      *dagpher.Graph[ExecCtx[P, R]]
-	loader    *dagpher.Group[ExecCtx[P, R]]
-	processor *dagpher.Group[ExecCtx[P, R]]
-	assembler *dagpher.Group[ExecCtx[P, R]]
+	flow      *weave.Graph[ExecCtx[P, R]]
+	loader    *weave.Group[ExecCtx[P, R]]
+	processor *weave.Group[ExecCtx[P, R]]
+	assembler *weave.Group[ExecCtx[P, R]]
 }
 
 func NewFlow[P, R any]() *Flow[P, R] {
 	f := &Flow[P, R]{
-		flow:      dagpher.NewGraph[ExecCtx[P, R]](),
-		loader:    dagpher.NewGroup[ExecCtx[P, R]]("loader"),
-		processor: dagpher.NewGroup[ExecCtx[P, R]]("processor", "loader").SetMaxGoNum(1),
-		assembler: dagpher.NewGroup[ExecCtx[P, R]]("assembler", "processor").SetMaxGoNum(1),
+		flow:      weave.NewGraph[ExecCtx[P, R]](),
+		loader:    weave.NewGroup[ExecCtx[P, R]]("loader"),
+		processor: weave.NewGroup[ExecCtx[P, R]]("processor", "loader").SetMaxGoNum(1),
+		assembler: weave.NewGroup[ExecCtx[P, R]]("assembler", "processor").SetMaxGoNum(1),
 	}
 	f.flow.AddNode(f.loader.AsNode())
 	f.flow.AddNode(f.processor.AsNode())
@@ -59,31 +59,31 @@ func (e *Flow[P, R]) SetMaxGoNum(goNum int) *Flow[P, R] {
 	return e
 }
 
-func (e *Flow[P, R]) AddGlobalMW(mws ...dagpher.Middleware) *Flow[P, R] {
+func (e *Flow[P, R]) AddGlobalMW(mws ...weave.Middleware) *Flow[P, R] {
 	e.flow.AddGlobalMW(mws...)
 	return e
 }
 
-func (e *Flow[P, R]) AddLoader(loader Loader[P], opts ...dagpher.Option) {
-	node := dagpher.NewNode(loader.Name(), func(ctx context.Context, execCtx ExecCtx[P, R]) error {
+func (e *Flow[P, R]) AddLoader(loader Loader[P], opts ...weave.Option) {
+	node := weave.NewNode(loader.Name(), func(ctx context.Context, execCtx ExecCtx[P, R]) error {
 		return loader.Load(ctx, execCtx.Payload)
-	}, dagpher.Map(loader.Depends(), func(dep IDepend) string {
+	}, weave.Map(loader.Depends(), func(dep IDepend) string {
 		return dep.Name()
 	})...)
 
 	e.loader.AddNode(node, opts...)
 }
 
-func (e *Flow[P, R]) AddProcessor(processor Processor[P], opts ...dagpher.Option) {
-	node := dagpher.NewNode(processor.Name(), func(ctx context.Context, execCtx ExecCtx[P, R]) error {
+func (e *Flow[P, R]) AddProcessor(processor Processor[P], opts ...weave.Option) {
+	node := weave.NewNode(processor.Name(), func(ctx context.Context, execCtx ExecCtx[P, R]) error {
 		return processor.Process(ctx, execCtx.Payload)
 	})
 
 	e.processor.AddNode(node, opts...)
 }
 
-func (e *Flow[P, R]) AddAssembler(assembler Assembler[P, R], opts ...dagpher.Option) {
-	node := dagpher.NewNode(assembler.Name(), func(ctx context.Context, execCtx ExecCtx[P, R]) error {
+func (e *Flow[P, R]) AddAssembler(assembler Assembler[P, R], opts ...weave.Option) {
+	node := weave.NewNode(assembler.Name(), func(ctx context.Context, execCtx ExecCtx[P, R]) error {
 		return assembler.Assemble(ctx, execCtx.Payload, execCtx.Result)
 	})
 

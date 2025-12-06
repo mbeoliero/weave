@@ -1,6 +1,6 @@
-// Package dagpher provides sequential execution capabilities.
+// Package weave provides sequential execution capabilities.
 // This file contains the Chain type for executing nodes in strict sequential order.
-package dagpher
+package weave
 
 import (
 	"context"
@@ -73,16 +73,13 @@ func (c *Chain[C]) Dependencies() []string {
 // Build prepares the chain for execution
 func (c *Chain[C]) Build() error {
 	for _, node := range c.nodes {
-		if adapter, ok := node.(*GroupNodeAdapter[C]); ok {
-			subGroup := adapter.group
-			if subGroup.globalSem == nil && c.globalSem != nil {
-				subGroup.SetGlobalSem(c.globalSem)
-			}
+		// Use interface detection instead of concrete type assertion
+		// This allows Chain to work with any Buildable node, not just GroupNodeAdapter
 
-			subGroup.AddMiddleware(c.globalMws...)
-
-			if err := subGroup.Build(); err != nil {
-				return fmt.Errorf("failed to build sub-group %s: %w", adapter.Name(), err)
+		// Build sub-nodes that implement Buildable
+		if buildable, ok := node.(Buildable); ok {
+			if err := buildable.Build(); err != nil {
+				return fmt.Errorf("failed to build sub-node %s: %w", node.Name(), err)
 			}
 		}
 	}
@@ -117,17 +114,11 @@ func (c *Chain[C]) wrapWithSemaphore(exec func(context.Context, C) error) func(c
 
 // executeNode executes a single node with middleware applied
 func (c *Chain[C]) executeNode(ctx context.Context, execCtx C, node Node[C]) error {
-	if adapter, ok := node.(*GroupNodeAdapter[C]); ok {
-		// For group adapters, we need to properly handle hierarchy context
-		subGroup := adapter.group
-
-		// Ensure the subgroup is built
-		if err := subGroup.ensureBuilt(); err != nil {
-			return fmt.Errorf("failed to build sub-group %s: %w", adapter.Name(), err)
-		}
-		ctx = WithPushedHierarchyPath(ctx, subGroup.name)
-		// Execute the subgroup with proper hierarchy context
-		return subGroup.groupExec.Execute(ctx, execCtx)
+	// Use interface detection for hierarchy path management
+	// This decouples Chain from the concrete GroupNodeAdapter type
+	if subExec, ok := node.(SubExecutor); ok {
+		// Push hierarchy path for sub-executors
+		ctx = WithPushedHierarchyPath(ctx, subExec.InternalName())
 	}
 
 	return ExecuteWithMiddleware(c.globalMws, node, ctx, execCtx)

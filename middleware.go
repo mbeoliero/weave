@@ -1,6 +1,6 @@
-// Package dagpher provides middleware management and execution utilities for DAG execution.
+// Package weave provides middleware management and execution utilities for DAG execution.
 // This file contains middleware chain processing and execution helpers.
-package dagpher
+package weave
 
 import (
 	"context"
